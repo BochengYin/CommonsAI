@@ -5,7 +5,7 @@ from .embeddings import encode_text, encode_images
 from .utils import *
 from typing import Optional
 
-app = FastAPI(title="LLM-Cache MVP", version="0.1")
+app = FastAPI(title="CommonsAI", version="0.1")
 
 # Load index and metadata at startup
 def load_state():

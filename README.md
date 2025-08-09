@@ -1,6 +1,21 @@
-# Shared LLM Answer Cache (MVP)
+# CommonsAI: Community Q&A Index for Shared LLM Answers (MVP)
 
-A local prototype to validate a shared, searchable, cacheable LLM Q&A system: users ask (text or image), the system first searches previous similar items; on hit, it returns the curated cached answer; on miss, it drafts with an LLM and lets the community improve and store the answer.
+Not every question should be asked to a personal LLM. For public or academic questions, it’s often better to ask once, share openly, and let everyone reuse and build on the answer. CommonsAI is a community Q&A database: when you ask (text or image), we search for similar existing threads; if one fits, you jump into that thread, otherwise we open a new LLM‑assisted window and store it for future reuse.
+
+### MVP scope (first step)
+- Cross‑modal retrieval: encode both text and images into the same semantic space (OpenCLIP). A text question can find a matching image thread and vice versa.
+- Thread selection flow: Ask → Retrieve Top‑K similar threads → you pick an existing thread or start a new LLM‑assisted thread.
+- Local, inspectable storage (FAISS + .npy/.json/.jsonl) to iterate quickly.
+
+### Why this matters
+- Cost/energy: reuse existing high‑quality answers instead of regenerating them for each person.
+- Collective intelligence: seeing others’ questions, LLM answers, and follow‑ups reveals depth of thinking and different angles that inspire new ideas.
+
+## How it works (1 minute)
+1) Put historical images in `data/images/`.
+2) Build the index: encodes images → saves `img_embeds.npy` → builds `img.index` and `ids.json`.
+3) Query: encode text → search FAISS → map indices to image IDs → return Top‑K and a HIT/MISS decision.
+4) Update answers: community can improve answers via API; future queries reuse them.
 
 ## Setup
 ```bash
