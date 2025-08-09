@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# macOS
+.DS_Store
+
+# Data artifacts (generated locally)
+data/img_embeds.npy
+data/img.index
+data/ids.json
+data/qa.jsonl
+data/tau.txt
+
+# Large/raw images are ignored by default
+data/images/*
+!data/images/.gitkeep
+
+# Uvicorn reload artifacts
+*.pid
+
