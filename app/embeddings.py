@@ -4,7 +4,7 @@ from PIL import Image
 
 _DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# 模型：OpenCLIP ViT-B/32（laion2b_s34b_b79k），多语言文本也有不错鲁棒性
+# Model: OpenCLIP ViT-B/32 (laion2b_s34b_b79k). Robust for multilingual text.
 _MODEL_NAME = "ViT-B-32"
 _PRETRAINED = "laion2b_s34b_b79k"
 
@@ -18,7 +18,7 @@ def _ensure_model():
         _model, preprocess_train, preprocess_val = open_clip.create_model_and_transforms(
             _MODEL_NAME, pretrained=_PRETRAINED, device=_DEVICE
         )
-        # 选择验证时的 preprocess（更常用于推理）
+        # Prefer the validation transform for inference
         _preprocess = preprocess_val
         _tokenizer = open_clip.get_tokenizer(_MODEL_NAME)
         _model.eval()

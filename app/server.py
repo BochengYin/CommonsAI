@@ -7,7 +7,7 @@ from typing import Optional
 
 app = FastAPI(title="LLM-Cache MVP", version="0.1")
 
-# —— 启动时加载索引与元数据 ——
+# Load index and metadata at startup
 def load_state():
     ensure_dirs()
     if not INDEX_PATH.exists():
@@ -58,15 +58,15 @@ def query(text: str = Form(...), k: int = Form(5)):
     top = hits[0] if hits else None
     decision = None
     if top and top["sim"] >= _tau and top["answer"] and top["quality"] >= 3:
-        decision = "HIT"   # 直接返回缓存答案
+        decision = "HIT"   # return cached answer directly
     else:
-        decision = "MISS"  # 需要走 LLM（你可在前端/后端接 LLM，再写回）
+        decision = "MISS"  # need to call LLM, then write back via update
 
     return {"decision": decision, "tau": _tau, "topk": hits}
 
 @app.post("/update_answer")
 def update_answer(img_id: str = Form(...), answer: str = Form(...), quality: int = Form(3)):
-    # 更新/追加 qa.jsonl
+    # Update/append qa.jsonl
     rows = read_jsonl(QA_PATH)
     found = False
     with QA_PATH.open("w", encoding="utf-8") as f:
@@ -94,10 +94,10 @@ async def add_image(file: UploadFile = File(...)):
     with out_path.open("wb") as f:
         f.write(await file.read())
 
-    # 编码并增量 add
+    # Encode and incrementally add
     vec = encode_images([out_path])[0].astype(np.float32)
     if not INDEX_PATH.exists():
-        # 首次：直接重建
+        # First time: rebuild
         from .build_index import main as rebuild
         rebuild()
     else:
