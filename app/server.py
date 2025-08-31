@@ -3,36 +3,35 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from .embeddings import encode_text, encode_images
 from .utils import *
+from .file_repository import FileRepository
 from typing import Optional
 
 app = FastAPI(title="CommonsAI", version="0.1")
 
-# Load index and metadata at startup
-def load_state():
+# Initialize repository and load index at startup
+_repo = FileRepository()
+
+def load_index():
     ensure_dirs()
     if not INDEX_PATH.exists():
-        return None, None, None, float(read_text(TAU_PATH, "0.30"))
-    index = faiss.read_index(str(INDEX_PATH))
-    ids = read_json(IDS_PATH, [])
-    qa = read_jsonl(QA_PATH)
-    tau = float(read_text(TAU_PATH, "0.30"))
-    return index, ids, qa, tau
+        return None
+    return faiss.read_index(str(INDEX_PATH))
 
-_index, _ids, _qa, _tau = load_state()
+_index = load_index()
 
 def refresh():
-    global _index, _ids, _qa, _tau
-    _index, _ids, _qa, _tau = load_state()
+    global _index
+    _index = load_index()
+    _repo.refresh()
 
 @app.get("/health")
 def health():
-    return {"ok": _index is not None, "tau": _tau, "num_images": len(_ids or [])}
+    return {"ok": _index is not None, "tau": _repo.get_tau(), "num_images": len(_repo.get_image_ids())}
 
 @app.post("/set_tau")
 def set_tau(tau: float = Form(...)):
-    write_text(TAU_PATH, str(tau))
-    refresh()
-    return {"tau": _tau}
+    _repo.set_tau(tau)
+    return {"tau": _repo.get_tau()}
 
 @app.post("/query")
 def query(text: str = Form(...), k: int = Form(5)):
@@ -43,9 +42,12 @@ def query(text: str = Form(...), k: int = Form(5)):
     sims = D[0].tolist()
     idxs = I[0].tolist()
     hits = []
-    qa_map = {item["id"]: item for item in _qa}
+    ids = _repo.get_image_ids()
+    qa_records = _repo.get_all_qa()
+    qa_map = {item["id"]: item for item in qa_records}
+    
     for sim, idx in zip(sims, idxs):
-        img_id = _ids[idx]
+        img_id = ids[idx]
         item = qa_map.get(img_id, {"answer": "", "quality": 0, "path": f"data/images/{img_id}"})
         hits.append({
             "img_id": img_id,
@@ -56,33 +58,18 @@ def query(text: str = Form(...), k: int = Form(5)):
         })
 
     top = hits[0] if hits else None
+    tau = _repo.get_tau()
     decision = None
-    if top and top["sim"] >= _tau and top["answer"] and top["quality"] >= 3:
+    if top and top["sim"] >= tau and top["answer"] and top["quality"] >= 3:
         decision = "HIT"   # return cached answer directly
     else:
         decision = "MISS"  # need to call LLM, then write back via update
 
-    return {"decision": decision, "tau": _tau, "topk": hits}
+    return {"decision": decision, "tau": tau, "topk": hits}
 
 @app.post("/update_answer")
 def update_answer(img_id: str = Form(...), answer: str = Form(...), quality: int = Form(3)):
-    # Update/append qa.jsonl
-    rows = read_jsonl(QA_PATH)
-    found = False
-    with QA_PATH.open("w", encoding="utf-8") as f:
-        for r in rows:
-            if r.get("id") == img_id:
-                r["answer"] = answer
-                r["quality"] = quality
-                found = True
-            f.write((JSONResponse(r).body or b"").decode() + "\n")
-    if not found:
-        append_jsonl(QA_PATH, {
-            "id": img_id, "type": "image",
-            "path": f"data/images/{img_id}",
-            "answer": answer, "quality": quality, "tags": []
-        })
-    refresh()
+    _repo.upsert_qa(img_id, answer, quality)
     return {"ok": True}
 
 @app.post("/add_image")
@@ -104,13 +91,8 @@ async def add_image(file: UploadFile = File(...)):
         index = faiss.read_index(str(INDEX_PATH))
         index.add(vec.reshape(1, -1))
         faiss.write_index(index, str(INDEX_PATH))
-        ids = read_json(IDS_PATH, [])
-        ids.append(img_id)
-        write_json(IDS_PATH, ids)
-        append_jsonl(QA_PATH, {
-            "id": img_id, "type": "image",
-            "path": f"data/images/{img_id}", "answer": "", "quality": 0, "tags": []
-        })
+        _repo.add_image_id(img_id)
+        _repo.upsert_qa(img_id, "", 0, f"data/images/{img_id}")
     refresh()
     return {"id": img_id, "path": f"data/images/{img_id}"}
 
