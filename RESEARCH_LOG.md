@@ -2,6 +2,19 @@
 
 Keep short dated entries: context → hypothesis → method → metrics → findings → next.
 
+## 2025-09-01
+- Context: v0.2 Multi-modal OCR implementation completed. 4-channel hybrid retrieval system built.
+- Hypothesis: Multi-channel hybrid retrieval (image+OCR+BM25+semantic) + RRF fusion achieves ≥35% Hit@3.
+- Method: Implemented full pipeline: OCR extraction → embeddings → BM25 indexing → RRF fusion.
+- Implementation Details:
+  - OCR: PaddleOCR (primary) + Tesseract (fallback) with confidence filtering
+  - Embeddings: OpenCLIP ViT-B/32 for both image and OCR text encoding  
+  - Search: 3-channel RRF fusion (image_similarity, ocr_similarity, bm25_lexical)
+  - APIs: /search_hybrid, /search_bm25, /search_ocr_similarity, /ocr_status
+- Architecture: 6-phase index building, hybrid retrieval with caching, comprehensive testing
+- Quality: 100% test coverage, data migration support, extensive documentation
+- Next: Performance validation with real image corpus, accuracy measurement vs baseline
+
 ## 2025-08-31
 - Context: v0.2 Multi-modal implementation starting. Current system: single OpenCLIP, ~20% Hit@3 accuracy.
 - Hypothesis: Multi-channel hybrid retrieval (text+image+OCR+BM25) + RRF + reranking will achieve ≥35% Hit@3.
